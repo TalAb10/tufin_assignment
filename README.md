@@ -75,9 +75,6 @@ A production-quality REST API that wraps a **LangGraph ReAct agent** (GPT-5.4) w
 - OpenAI API key
 
 ```bash
-cd multi-tool-agent
-
-cp .env.example .env
 # Set OPENAI_API_KEY in .env
 
 docker compose up --build
