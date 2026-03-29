@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Tool AI Agent</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+        .container { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 { font-size: 2rem; color: #38bdf8; margin-bottom: 0.5rem; }
+        header p { color: #94a3b8; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1rem; color: #94a3b8; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        textarea { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; padding: 0.75rem; font-size: 1rem; resize: vertical; min-height: 80px; }
+        textarea:focus { outline: none; border-color: #38bdf8; }
+        .row { display: flex; gap: 1rem; align-items: center; margin-top: 1rem; flex-wrap: wrap; }
+        input[type="text"] { flex: 1; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; padding: 0.75rem; font-size: 0.9rem; min-width: 200px; }
+        input[type="text"]::placeholder { color: #475569; }
+        input[type="text"]:focus { outline: none; border-color: #38bdf8; }
+        button { background: #38bdf8; color: #0f172a; border: none; border-radius: 8px; padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+        button:hover { background: #7dd3fc; }
+        button:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+        .status-bar { display: flex; gap: 1rem; font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; }
+        .status-bar span { display: flex; align-items: center; gap: 0.25rem; }
+        .answer-box { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 1rem; white-space: pre-wrap; line-height: 1.6; min-height: 60px; }
+        .trace-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+        .trace-item { background: #0f172a; border-radius: 8px; padding: 0.75rem; border-left: 3px solid #334155; font-size: 0.875rem; }
+        .trace-item.reasoning { border-left-color: #a78bfa; }
+        .trace-item.tool_call { border-left-color: #38bdf8; }
+        .trace-item.tool_result { border-left-color: #34d399; }
+        .trace-item.final_answer { border-left-color: #fbbf24; }
+        .trace-header { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.25rem; }
+        .badge { font-size: 0.7rem; padding: 0.1rem 0.5rem; border-radius: 999px; font-weight: 600; text-transform: uppercase; }
+        .badge.reasoning { background: #4c1d95; color: #a78bfa; }
+        .badge.tool_call { background: #0c4a6e; color: #38bdf8; }
+        .badge.tool_result { background: #064e3b; color: #34d399; }
+        .badge.final_answer { background: #78350f; color: #fbbf24; }
+        .trace-content { color: #94a3b8; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .trace-tool { color: #64748b; font-size: 0.8rem; }
+        .error { color: #f87171; background: #450a0a; border: 1px solid #7f1d1d; border-radius: 8px; padding: 1rem; }
+        .loading { display: flex; align-items: center; gap: 0.5rem; color: #94a3b8; }
+        .spinner { width: 16px; height: 16px; border: 2px solid #334155; border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .examples { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+        .example-btn { background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
+        .example-btn:hover { border-color: #38bdf8; color: #38bdf8; background: #1e293b; }
+        .conv-id-display { font-size: 0.75rem; color: #475569; margin-top: 0.5rem; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Multi-Tool AI Agent</h1>
+            <p>Powered by GPT-5.4 with LangGraph ReAct &bull; 5 integrated tools</p>
+        </header>
+
+        <div class="card">
+            <h2>Send a Task</h2>
+            <div class="examples">
+                <button class="example-btn" onclick="setExample('What is 18% tip on a $74.50 restaurant bill?')">Calculator</button>
+                <button class="example-btn" onclick="setExample('What is the weather in Tokyo and convert the temperature to Fahrenheit?')">Weather + Convert</button>
+                <button class="example-btn" onclick="setExample('Show all Seafood products with their prices and stock levels')">DB Query</button>
+                <button class="example-btn" onclick="setExample('Who is the current CEO of Microsoft?')">Web Search</button>
+                <button class="example-btn" onclick="setExample('What is a 15% discount on the most expensive Beverages product?')">DB + Calc</button>
+            </div>
+            <textarea id="taskInput" placeholder="Ask the agent anything or combine tools — e.g. 'Weather in Berlin in Fahrenheit' or '10% off the cheapest Condiments product'" rows="3"></textarea>
+            <div class="row">
+                <input type="text" id="convIdInput" placeholder="Conversation ID (leave blank to start new)">
+                <button id="submitBtn" onclick="submitTask()">Send Task</button>
+            </div>
+            <div class="conv-id-display" id="convIdDisplay"></div>
+        </div>
+
+        <div id="loadingDiv" style="display:none" class="card">
+            <div class="loading"><div class="spinner"></div> Agent is thinking...</div>
+        </div>
+
+        <div id="errorDiv" style="display:none" class="card">
+            <div class="error" id="errorMsg"></div>
+        </div>
+
+        <div id="resultCard" style="display:none" class="card">
+            <h2>Answer</h2>
+            <div class="answer-box" id="answerBox"></div>
+            <div class="status-bar">
+                <span id="tokensSpan">&#128290; &mdash; tokens</span>
+                <span id="latencySpan">&#9201; &mdash; ms</span>
+                <span id="statusSpan">&mdash; status</span>
+            </div>
+        </div>
+
+        <div id="traceCard" style="display:none" class="card">
+            <h2>Reasoning Trace</h2>
+            <ul class="trace-list" id="traceList"></ul>
+        </div>
+    </div>
+
+    <script>
+        let currentConvId = null;
+
+        function setExample(text) {
+            document.getElementById('taskInput').value = text;
+        }
+
+        async function submitTask() {
+            const task = document.getElementById('taskInput').value.trim();
+            if (!task) return;
+
+            const convIdInput = document.getElementById('convIdInput').value.trim();
+            const conversationId = convIdInput || currentConvId || null;
+
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+
+            document.getElementById('loadingDiv').style.display = 'block';
+            document.getElementById('errorDiv').style.display = 'none';
+            document.getElementById('resultCard').style.display = 'none';
+            document.getElementById('traceCard').style.display = 'none';
+
+            try {
+                const body = { task };
+                if (conversationId) body.conversation_id = conversationId;
+
+                const resp = await fetch('/api/v1/task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+
+                const data = await resp.json();
+
+                if (!resp.ok) {
+                    throw new Error(data.detail || `HTTP ${resp.status}`);
+                }
+
+                currentConvId = data.conversation_id;
+                document.getElementById('convIdInput').value = currentConvId;
+                document.getElementById('convIdDisplay').textContent = `Conversation: ${currentConvId} | Task ID: ${data.task_id}`;
+
+                // Show result
+                document.getElementById('resultCard').style.display = 'block';
+                document.getElementById('answerBox').textContent = data.answer || data.error_message || '(no answer)';
+                document.getElementById('tokensSpan').textContent = `\uD83D\uDD22 ${data.total_tokens} tokens`;
+                document.getElementById('latencySpan').textContent = `\u23F1 ${Math.round(data.total_latency_ms)}ms`;
+                document.getElementById('statusSpan').textContent = `\u2713 ${data.status}`;
+
+                // Show trace
+                if (data.trace && data.trace.length > 0) {
+                    document.getElementById('traceCard').style.display = 'block';
+                    const list = document.getElementById('traceList');
+                    list.innerHTML = '';
+                    data.trace.forEach(step => {
+                        const li = document.createElement('li');
+                        li.className = `trace-item ${step.type}`;
+                        let toolInfo = step.tool_name ? `<span class="trace-tool">Tool: ${step.tool_name}</span>` : '';
+                        let inputInfo = step.tool_input ? `<br><span class="trace-tool">Input: ${JSON.stringify(step.tool_input)}</span>` : '';
+                        li.innerHTML = `
+                            <div class="trace-header">
+                                <span class="badge ${step.type}">${step.type.replace('_', ' ')}</span>
+                                <span style="color:#64748b;font-size:0.8rem">Step ${step.step}</span>
+                                ${toolInfo}
+                            </div>
+                            ${inputInfo}
+                            <div class="trace-content">${escapeHtml(step.content)}</div>
+                        `;
+                        list.appendChild(li);
+                    });
+                }
+
+            } catch (err) {
+                document.getElementById('errorDiv').style.display = 'block';
+                document.getElementById('errorMsg').textContent = `Error: ${err.message}`;
+            } finally {
+                document.getElementById('loadingDiv').style.display = 'none';
+                btn.disabled = false;
+            }
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        document.getElementById('taskInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) submitTask();
+        });
+    </script>
+</body>
+</html>

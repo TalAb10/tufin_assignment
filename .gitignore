@@ -1,0 +1,26 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Virtual environment (uv)
+.venv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Data / runtime state
+postgres_data/
+
+# OS
+.DS_Store
+Thumbs.db
